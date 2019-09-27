@@ -30,6 +30,7 @@ public static class Utility {
         return Mathf.Sqrt(Mathf.Pow(x1 - x2, 2) + Mathf.Pow(z1 - z2, 2));
     }
 
+    //TODO include original piece
     public static List<GameObject> FindConnectedPieces(int xCor, int zCor, string state) {
 
         bool newFound = true;
@@ -88,6 +89,37 @@ public static class Utility {
         return RoundedVectors;
     }
 
+    public static GameObject GetNeighbour(GameObject origin, string direction) {
+        // Returns a specific neighbour, "up", "down", "left", "right" are the possible directions
+        // If the neighbour is out of bounds, then return null.
+
+        int xCor = origin.GetComponent<General>().xCor;
+        int zCor = origin.GetComponent<General>().zCor;
+
+        GameObject neighbour = null;
+        if(direction == "up") {
+            if(CheckWithinBounds(xCor, zCor + 1)) {
+                neighbour = BuildWorld.gridObjects[xCor, zCor + 1];
+            }
+        }
+        else if( direction == "down") {
+            if(CheckWithinBounds(xCor, zCor - 1)) {
+                neighbour = BuildWorld.gridObjects[xCor, zCor - 1];
+            }
+        }
+        else if (direction == "left") {
+            if (CheckWithinBounds(xCor - 1, zCor)) {
+                neighbour = BuildWorld.gridObjects[xCor - 1, zCor];
+            }
+        }
+        else if (direction == "right") {
+            if (CheckWithinBounds(xCor + 1, zCor)) {
+                neighbour = BuildWorld.gridObjects[xCor + 1, zCor];
+            }
+        }
+
+        return neighbour;
+    }
     public static void Print(params object[] args) {
         // Prints the given statements
 

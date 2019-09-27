@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-
 public class BuildWorld : MonoBehaviour {
 
-    public GameObject Grass, Water, Asphalt, Bridge, House, Tree;
-    public GameObject Camera, gridPiece, cityEmpty, gridHier;
+    public GameObject Grass, Water, Bridge, House, Tree, Asphalt_default, Bridge_main;
+   
+    public GameObject Camera, gridPiece, cityEmpty, gridHier, bridgeHier;
     public static int sizeX, sizeZ;
     public int _sizeX, _sizeZ, cityCount;
     public static GameObject[,] gridObjects;
@@ -78,7 +78,7 @@ public class BuildWorld : MonoBehaviour {
         Vector3[,] gridVectors = new Vector3[length, width];
         for (int i = 0; i < length; i++) {
             for (int j = 0; j < width; j++) {
-                Vector3 vector = new Vector3(i + 0.5f, 1, j + 0.5f);
+                Vector3 vector = new Vector3(i + 0.5f, 0, j + 0.5f);
                 gridVectors[i, j] = vector;
             }
         }
@@ -124,7 +124,9 @@ public class BuildWorld : MonoBehaviour {
         // Places grass at every spot
         for (int i = 0; i < sizeX; i++) {
             for (int j = 0; j < sizeZ; j++) {
-                ReplacePiece(i, j, Grass, "Grass");
+
+                gridObjects[i,j].GetComponent<General>().AddPiece(Grass);
+                gridObjects[i,j].tag = "Grass";
             }
         }
 
@@ -171,15 +173,22 @@ public class BuildWorld : MonoBehaviour {
                     normVec *= -1;
                 }
 
-                    // Add normalized vector to beziercurve to give the curve a width
-                    Vector3 addedVec = coordinatesBezier[i] + j * normVec;
+                // Add normalized vector to beziercurve to give the curve a width
+                Vector3 addedVec = coordinatesBezier[i] + j * normVec;
 
                
                 int xCor = (int)addedVec[0];
                 int zCor = (int)addedVec[2];
 
                 if (Utility.CheckWithinBounds(xCor, zCor)) {
-                    ReplacePiece(xCor, zCor, Water, "Water");
+                    if (gridObjects[xCor, zCor].tag != "Water") {
+
+                        gridObjects[xCor, zCor].GetComponent<General>().RemovePiece("all");
+
+                        gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Water);
+                        gridObjects[xCor, zCor].tag = "Water";
+                        Destroy(gridObjects[xCor, zCor].GetComponent<Grass>());
+                    }
                 }
 
                 if (riverWidth >= 2) {
@@ -359,7 +368,17 @@ public class BuildWorld : MonoBehaviour {
             int x0 = cities[0].GetComponent<CityProperties>().xCor;
             int z0 = cities[0].GetComponent<CityProperties>().zCor;
 
-            ReplacePiece(x0, z0, Asphalt, "Asphalt");
+            if (gridObjects[x0, z0].tag == "Water") {
+                gridObjects[x0, z0].GetComponent<General>().AddPiece(Bridge);
+                gridObjects[x0, z0].tag = "Bridge";
+                gridObjects[x0, z0].AddComponent<Asphalt>();
+            }
+            else if (gridObjects[x0, z0].tag == "Grass") {
+                gridObjects[x0, z0].GetComponent<General>().AddPiece(Asphalt_default);
+                gridObjects[x0, z0].tag = "Asphalt";
+                gridObjects[x0, z0].GetComponent<General>().RemovePiece("Grass");
+                Destroy(gridObjects[x0, z0].GetComponent<Grass>());
+            }
 
         }
 
@@ -420,12 +439,18 @@ public class BuildWorld : MonoBehaviour {
                 int zCor = constCor;
                 if (Utility.CheckWithinBounds(xCor, zCor)) {
                     if (gridObjects[xCor, zCor].tag == "Grass") {
-                        ReplacePiece(xCor, zCor, Asphalt, "Asphalt");
+                        gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Asphalt_default);
+                        gridObjects[xCor, zCor].tag = "Asphalt";
+                        gridObjects[xCor, zCor].GetComponent<General>().RemovePiece("Grass");
+                        Destroy(gridObjects[xCor, zCor].GetComponent<Grass>());
                     }
                     else if (gridObjects[xCor, zCor].tag == "Water") {
-                        ReplacePiece(xCor, zCor, Bridge, "Bridge");
+                        gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Bridge);
+                        gridObjects[xCor, zCor].tag = "Bridge";
+                        gridObjects[xCor, zCor].AddComponent<Asphalt>();
                     }
                     gridObjects[xCor, zCor].GetComponent<Asphalt>().highway = true;
+                    gridObjects[xCor, zCor].GetComponent<Asphalt>().speed_limit = 0.25f;
                 }
             }
             else {
@@ -433,13 +458,19 @@ public class BuildWorld : MonoBehaviour {
                 int zCor = minCor + i;
                 if (Utility.CheckWithinBounds(xCor, zCor)) {
                     if (gridObjects[xCor, zCor].tag == "Grass") {
-                        ReplacePiece(xCor, zCor, Asphalt, "Asphalt");
+                        gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Asphalt_default);
+                        gridObjects[xCor, zCor].tag = "Asphalt";
+                        gridObjects[xCor, zCor].GetComponent<General>().RemovePiece("Grass");
+                        Destroy(gridObjects[xCor, zCor].GetComponent<Grass>());
                     }
                     else if (gridObjects[xCor, zCor].tag == "Water") {
-                        ReplacePiece(xCor, zCor, Bridge, "Bridge");
+                        gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Bridge);
+                        gridObjects[xCor, zCor].tag = "Bridge";
+                        gridObjects[xCor, zCor].AddComponent<Asphalt>();
                     }
                     gridObjects[xCor, zCor].GetComponent<Asphalt>().highway = true;
-    
+                    gridObjects[xCor, zCor].GetComponent<Asphalt>().speed_limit = 0.25f;
+
                 }
 
             }
@@ -496,9 +527,6 @@ public class BuildWorld : MonoBehaviour {
                     }
                 }
 
-
-
-
                 if (possibleIntersects.Count > 0) {
 
                     //Pick one of the possible intersections
@@ -515,10 +543,12 @@ public class BuildWorld : MonoBehaviour {
 
                     // Places intersection
                     if (gridObjects[xCor, zCor].tag == "Water") {
-                        ReplacePiece(xCor, zCor, Bridge, "Bridge");
+                        gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Bridge);
+                        gridObjects[xCor, zCor].tag = "Bridge";
+                        gridObjects[xCor, zCor].AddComponent<Asphalt>();
                     }
-                    else if (gridObjects[xCor, zCor]) {
-                        ReplacePiece(xCor, zCor, Asphalt, "Asphalt");
+                    else if (gridObjects[xCor, zCor].tag == "Grass") {
+                        gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Asphalt_default);
                     }
 
                     // Determines how long the streets of the intersection are
@@ -592,6 +622,37 @@ public class BuildWorld : MonoBehaviour {
             }
         }
 
+        // Specialise all asphalt objects
+        GameObject[] asphalt_objects = GameObject.FindGameObjectsWithTag("Asphalt");
+        foreach(GameObject obj in asphalt_objects) {
+            obj.GetComponent<Asphalt>().Specialize();
+        }
+
+
+        // Bridges which are connected to each other get linked to the same bridge_main object, which stores all the info over the bridge.
+        List<GameObject> bridge_objects = new List<GameObject>(GameObject.FindGameObjectsWithTag("Bridge"));
+        int bridgeCount = 0;
+        while (bridge_objects.Count > 0) {
+
+            GameObject bridge_main = (GameObject)Instantiate(Bridge_main);
+            bridge_main.name = "Bridge_main " + bridgeCount;
+            bridge_main.transform.parent = bridgeHier.transform;
+
+            GameObject temp = bridge_objects[0];
+
+            List<GameObject> attached_bridges = Utility.FindConnectedPieces(temp.GetComponent<General>().xCor, temp.GetComponent<General>().zCor, "Bridge");
+            foreach (GameObject obj in attached_bridges) {
+                obj.GetComponent<Bridge_child>().bridge_main = bridge_main;
+                
+                bridge_objects.Remove(obj);
+                bridge_main.GetComponent<Bridge>().bridge_children.Add(obj);
+            }
+            temp.GetComponent<Bridge_child>().bridge_main = bridge_main;
+            bridge_objects.Remove(temp);
+            bridge_main.GetComponent<Bridge>().bridge_children.Add(temp);
+
+            bridgeCount += 1;
+        }
     }
 
     bool PlaceRoad(int xCor, int zCor, GameObject city) {
@@ -600,10 +661,15 @@ public class BuildWorld : MonoBehaviour {
             if (CheckInCity(xCor, zCor, city)) {
                 inCity = true;
                 if (gridObjects[xCor, zCor].tag == "Water") {
-                    ReplacePiece(xCor, zCor, Bridge, "Bridge");
+                    gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Bridge);
+                    gridObjects[xCor, zCor].tag = "Bridge";
+                    gridObjects[xCor, zCor].AddComponent<Asphalt>();
                 }
                 else if(gridObjects[xCor, zCor].tag == "Grass") {
-                    ReplacePiece(xCor, zCor, Asphalt, "Asphalt");
+                    gridObjects[xCor, zCor].GetComponent<General>().AddPiece(Asphalt_default);
+                    gridObjects[xCor, zCor].tag = "Asphalt";
+                    gridObjects[xCor, zCor].GetComponent<General>().RemovePiece("Grass");
+                    Destroy(gridObjects[xCor, zCor].GetComponent<Grass>());
                 }
             }
         }
@@ -681,7 +747,8 @@ public class BuildWorld : MonoBehaviour {
                 int zCor = obj.GetComponent<General>().zCor;
                 if (gridObjects[xCor, zCor].tag == "Grass") {
 
-                    ReplacePiece(xCor, zCor, House, "House");
+                    gridObjects[xCor, zCor].GetComponent<General>().AddPiece(House);
+                    gridObjects[xCor, zCor].tag = "House";
                 }
             }
 
@@ -700,7 +767,8 @@ public class BuildWorld : MonoBehaviour {
             int zCor = grass.GetComponent<General>().zCor;
 
             if (CheckTreeSpace(xCor, zCor)) {
-                ReplacePiece(xCor, zCor, Tree, "Tree");
+                grass.GetComponent<General>().AddPiece(Tree);
+                gridObjects[xCor, zCor].tag = "Tree";
             }
         }
         buildState += 1;
@@ -817,23 +885,8 @@ public class BuildWorld : MonoBehaviour {
         return p;
     }
 
-    void ReplacePiece(int xCor, int zCor, GameObject newObj, string state) {
-
-        GameObject oldObj = gridObjects[xCor, zCor];
-        if (oldObj.tag != state) {
-            List<object> data = oldObj.GetComponent<General>().CreateCopyList();
-            GameObject obj = (GameObject)Instantiate(newObj);
-            obj.GetComponent<General>().CopyData(data, state);
-
-            obj.transform.parent = rows[xCor].transform;
-            obj.name = xCor + ", " + zCor + " " + state;
-
-            gridObjects[xCor, zCor] = obj;
-            Destroy(oldObj);
-        }
-    }
-
     void StartLiving() {
+
         Debug.Break();
         gameObject.GetComponent<LiveWorld>().enabled = true;
     }

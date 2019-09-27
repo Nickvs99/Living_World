@@ -4,11 +4,11 @@ using UnityEngine;
 
 public class LiveWorld : MonoBehaviour {
 
-    public GameObject Boat, Car;
-
+    public GameObject Boat;
+    public GameObject Car;
     int frame = 0;
-	// Use this for initialization
-	void Start () {
+
+    void Start () {
         Debug.Log("Lets live");
         gameObject.GetComponent<BuildWorld>().enabled = false;
 
@@ -23,9 +23,10 @@ public class LiveWorld : MonoBehaviour {
 
         
         if(frame == 0) {
-            SpawnCar();
+            for(int i = 0; i < 10; i++) {
+                SpawnCar();
+            }
         }
-        
 
         frame += 1;
 		
@@ -40,7 +41,8 @@ public class LiveWorld : MonoBehaviour {
 
     }
 
-    void SpawnCar() {
+    public void SpawnCar() {
+
         GameObject car = (GameObject)Instantiate(Car);
         car.SetActive(true);
         car.GetComponent<Car>().Initialize();

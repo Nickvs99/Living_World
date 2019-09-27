@@ -4,42 +4,48 @@ using UnityEngine;
 
 public class Bridge : MonoBehaviour {
 
-    public bool open = false;
-    public bool closing = false;
-    private int closeCount = 10;         // The time it takes to close a bridge
-    public GameObject brug;
-
-    
-    
-    private List<GameObject> connectedBridges;
+    public int closeCount = 100;         // The time it takes to close a bridge
+    public bool occupied = false;
+    public string state = "closed";
+    public string occupied_state = "none";
+    public List<GameObject> objects =  new List<GameObject>();
+    public List<GameObject> bridge_children = new List<GameObject>();
 
     private void Update() {
 
-        if (closing) {
+        if (state == "opening") {
             closeCount -= 1;
-            brug.transform.localScale = new Vector3(closeCount / 100f, closeCount / 100f, closeCount / 100f);
+            if(closeCount <= 0) {
+                state = "open";
+            }
+        }
+        else if (state == "closing") {
+            closeCount += 1;
+            if(closeCount >= 100) {
+                state = "closed";
+            }
         }
 
-        // If the bridge has closed reset variables and set open to true
-        if(closeCount == 0) {
-            open = true;
-            closing = false;
+        if(objects.Count == 0) {
+            occupied_state = "none";
         }
+        else {
+            occupied_state = objects[0].tag;
+        }
+
+        // Detect if the objects are still on/under the bridge or will be there soon. Removes them is they aren't
+        List<GameObject> temp = new List<GameObject>(objects);
+        foreach (GameObject obj in objects) {
+
+            //TODO instead of using raycast to get the obj, find the obj using a transform
+            RaycastHit hit;
+            LayerMask bridge_mask = LayerMask.GetMask("Bridge");
+            if (!Physics.Raycast(obj.transform.position + new Vector3(0,1f, 0), obj.transform.TransformDirection(Vector3.down), out hit, 1, bridge_mask) &&
+                !Physics.Raycast(obj.transform.position, obj.transform.TransformDirection(Vector3.forward), out hit, 1, bridge_mask)) {
+
+                temp.Remove(obj);
+            }
+        }
+        objects = temp;
     }
-
-
-    public void OpenBridge() {
-        List<GameObject> bridges = Utility.FindConnectedPieces(gameObject.GetComponent<General>().xCor, gameObject.GetComponent<General>().zCor, "Bridge");
-        foreach(GameObject bridge in bridges) {
-            bridge.GetComponent<Bridge>().closing = true;
-            bridge.GetComponent<Bridge>().closeCount = 100;
-        }
-        closing = true;
-        closeCount = 100;
-    }
-
-    public void CloseBridge() {
-        gameObject.transform.localScale = new Vector3(1, 1, 1);
-
-    } 
 }

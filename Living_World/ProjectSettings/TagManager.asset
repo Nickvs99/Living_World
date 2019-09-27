@@ -12,6 +12,7 @@ TagManager:
   - Tree
   - City
   - Boat
+  - Car
   layers:
   - Default
   - TransparentFX
@@ -21,10 +22,10 @@ TagManager:
   - UI
   - 
   - 
-  - 
-  - 
-  - 
-  - 
+  - Asphalt
+  - Bridge
+  - Boat
+  - Car
   - 
   - 
   - 

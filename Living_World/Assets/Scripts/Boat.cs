@@ -16,6 +16,7 @@ public class Boat : MonoBehaviour {
     public void Initialize() {
         gameObject.transform.parent = boatHier.transform;
 
+        // Get the path
         int r = (int)Random.Range(0, 2);
         if(r == 0) {
             RiverPoints = centerHub.GetComponent<BuildWorld>().River0;
@@ -36,6 +37,7 @@ public class Boat : MonoBehaviour {
     void Update() {
 
         if (checkFreeSpace()) {
+
             float distLeft = speed;
 
             // As long as the distLeft is greater than the distance between currentPos and nextPos keep updating
@@ -44,7 +46,6 @@ public class Boat : MonoBehaviour {
 
                 distLeft -= Vector3.Distance(transform.position, RiverPoints[lifetime + 1]);
                 transform.position = RiverPoints[lifetime + 1];
-
                 lifetime += 1;
             }
 
@@ -54,6 +55,8 @@ public class Boat : MonoBehaviour {
                 float perc = distLeft / dist;
 
                 transform.position = Vector3.Lerp(transform.position, RiverPoints[lifetime + 1], perc);
+                transform.LookAt(RiverPoints[lifetime + 1]);
+
             }
             else {
                 Destroy(gameObject);
@@ -61,29 +64,51 @@ public class Boat : MonoBehaviour {
         }
     }
 
-
-
     bool checkFreeSpace() {
+        // Returns true if there is enough room for the boat to travel into.
+
         bool freeSpace = true;
-        Vector3 dir = RiverPoints[lifetime + 1] - transform.position;
-        float mag = Vector3.Magnitude(dir);
-        Vector3 normDir = dir / mag;
 
-        Debug.DrawRay(transform.position, normDir , Color.red);
-        RaycastHit hit;
-        if (Physics.Raycast(transform.position, normDir, out hit, 1)) {
-            GameObject obj = hit.transform.gameObject;
-            if (obj.tag == "Bridge" && obj.GetComponent<Bridge>().open == false) {
-                if (!obj.GetComponent<Bridge>().closing) {
+        if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out RaycastHit hit, 1, LayerMask.GetMask("Bridge"))) {
+            // When a bridge object is hit, the boat behaves differently for the four possible states from the bridge:
+            //      open: The boat can move forward
+            //      closed: The boat can't move forward. If there is no car on the bridge, open the bridge.
+            //      opening: The boat has to wait until the bridge is open.
+            //      closing: The boat has to wait until the bridge is closed. The cars are then allowed to drive over the bridge and then the bridge opens.
 
-                    obj.GetComponent<Bridge>().OpenBridge();
+            GameObject obj = hit.transform.parent.gameObject;
+            GameObject bridge_main = obj.GetComponent<Bridge_child>().bridge_main;
+
+            if (bridge_main.GetComponent<Bridge>().state == "open") {
+                if (!bridge_main.GetComponent<Bridge>().objects.Contains(gameObject)) {
+
+                    bridge_main.GetComponent<Bridge>().objects.Add(gameObject);
                 }
-                freeSpace = false;
             }
+            else if (bridge_main.GetComponent<Bridge>().state == "closed") {
+                if (bridge_main.GetComponent<Bridge>().occupied_state != "Car") {
 
-            if (obj.tag == "Boat") {
-                freeSpace = false;
+                    bridge_main.GetComponent<Bridge>().state = "opening";
+                }
+                return false;
             }
+            else if (bridge_main.GetComponent<Bridge>().state == "opening") {
+                if (!bridge_main.GetComponent<Bridge>().objects.Contains(gameObject)) {
+
+                    bridge_main.GetComponent<Bridge>().objects.Add(gameObject);
+                }
+                return false;
+            }
+            else if (bridge_main.GetComponent<Bridge>().state == "closing") {
+
+                return false;
+            }
+        }
+        
+        // When a boat is detected, it cannot move forward.
+        if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out hit, 1, LayerMask.GetMask("Boat"))) {
+            
+            return false;
         }
         return freeSpace;
     }

@@ -1,11 +1,16 @@
 fileFormatVersion: 2
 guid: b009912b4d2fdcf488281b45117e8a9c
-timeCreated: 1551736579
-licenseType: Free
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - cross_intersection: {fileID: -927199367670048503, guid: 847ef26e5da045c4ab6b821ed84eb1ca,
+      type: 3}
+  - t_junction: {instanceID: 0}
+  - corner: {instanceID: 0}
+  - straight: {instanceID: 0}
+  - end: {instanceID: 0}
+  - test: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

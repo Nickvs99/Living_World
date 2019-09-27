@@ -5,7 +5,6 @@ using UnityEngine;
 public class MoveCamera : MonoBehaviour {
 
     public void Initialize() {
-        Debug.Log("Move");
 
         float height;
         if (BuildWorld.sizeX > BuildWorld.sizeZ) {

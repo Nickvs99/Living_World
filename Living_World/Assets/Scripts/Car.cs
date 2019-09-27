@@ -4,266 +4,322 @@ using UnityEngine;
 
 public class Car : MonoBehaviour {
 
+    // TODO Remove count dependancy in while loops
+
     public GameObject startHouse, endHouse;
     public GameObject carHier;
-    int lifeTime = 0;
-    List<GameObject> path = new List<GameObject>();
-    // Start is called before the first frame update
+    public float speed = 0.1f;
+    private List<GameObject> path = new List<GameObject>();
+    private Vector3 target;
+
     public void Initialize() {
-        Debug.Log("Spawn Car");
-        if (gameObject == null) {
-            Debug.Log("ok");
-        }
 
         gameObject.transform.parent = carHier.transform;
 
         GameObject[] houses = GameObject.FindGameObjectsWithTag("House");
-        int r1 = Random.Range(0, houses.Length);
-        int r2 = Random.Range(0, houses.Length);
+        int r1 = Random.Range(0, houses.Length - 1);
+
+        //TODO make sure r2 != r1
+        int r2 = Random.Range(0, houses.Length - 1);
 
         startHouse = houses[r1];
         endHouse = houses[r2];
 
-        startHouse.transform.GetComponent<Renderer>().material.color = Color.red;
-        endHouse.transform.GetComponent<Renderer>().material.color = Color.blue;
+        path = Navigation(startHouse, endHouse);
 
+        //Stops when the path of the car is of length 1.
+        if (path.Count == 1) {
 
+            GameObject.Find("World_field").GetComponent<LiveWorld>().SpawnCar();
+            Destroy(gameObject);
+            return;
+        }
 
+        // Set position to middle of path[0]
+        transform.position = path[0].transform.position;
 
+        // Rotate car to next path
+        transform.LookAt(path[1].transform);
 
+        // Move car to the right lane
+        transform.position += transform.right * 0.2f;
+
+        target = FindTarget();
 
     }
 
     private void Update() {
 
-        lifeTime++;
-        if (lifeTime == 1) {
-            path = Navigation2(startHouse, endHouse);
-        }
-
-
-        /*
-        float startTime = Time.realtimeSinceStartup;
-        for (int i = 0; i < 100; i++) {
-            Navigation(startHouse, endHouse);
-        }
-        float endTime = Time.realtimeSinceStartup;
-        Debug.Log("Duration original: " + (endTime - startTime));
-
-
-        startTime = Time.realtimeSinceStartup;
-        for (int i = 0; i < 100; i++) {
-            Navigation2(startHouse, endHouse);
-        }
-        endTime = Time.realtimeSinceStartup;
-        Debug.Log("Duration new: " + (endTime - startTime));
-        */
-        Navigation2(startHouse, endHouse);
-
+        DriveCar();
     }
 
-    GameObject FindRoad(GameObject house) {
-        GameObject road = null;
+    private void DriveCar() {
+
+        if (checkFreeSpace()) {
+            int while_count = 0;
+            float distLeft = Get_asphalt_object(transform.position).GetComponent<Asphalt>().speed_limit;
+            int collide_count = 0;
+            while (path.Count > 0 && distLeft > Vector3.Distance(transform.position, target) && while_count < 50) {
+
+                distLeft -= Vector3.Distance(transform.position, target);
+                transform.position = target;
+
+                // If we reach the next asphalt object in path, then reset the collide count per asphalt
+                if (Get_asphalt_object(transform.position) == path[0]) {
+                    collide_count = 0;
+                    path.Remove(path[0]);
+                }
+                else {
+                    collide_count += 1;
+                }
+
+                //If there isn't any path left stop
+                if (path.Count == 0) {
+                    break;
+                }
+
+                // Each asphalt object has four colliders in each quadrant. The first collisions with such a colliders checks if the path is to the right of the car.
+                // The second checks if the path is to the left.
+                //TODO move Get_asphalt_object to Utility.cs
+                if (collide_count == 0) {
+                    if (Get_asphalt_object(transform.position + transform.TransformDirection(Vector3.right)) == path[0]) {
+                        transform.Rotate(0, 90, 0);
+                    }
+                }
+                else if (collide_count == 1) {
+                    if (Get_asphalt_object(transform.position + transform.TransformDirection(Vector3.left)) == path[0]) {
+                        transform.Rotate(0, -90, 0);
+                    }
+                }
+                else if (collide_count == 3) {
+                    Debug.Break();
+                    Debug.Log("WHOOPS, This should not have happend");
+                }
+
+                Vector3 oldTarget = target;
+                target = FindTarget();
+
+                while_count += 1;
+
+                if (!checkFreeSpace()) {
+
+                    return;
+                }
+
+            }
+
+            // The remainder of distLeft is added to the currentPos
+            if (path.Count > 0) {
+                float dist = Vector3.Distance(transform.position, target);
+                float perc = distLeft / dist;
+
+                transform.position = Vector3.Lerp(transform.position, target, perc);
+            }
+            else {
+                Destroy(gameObject);
+                GameObject.Find("World_field").GetComponent<LiveWorld>().SpawnCar();
+            }
+        }
+    }  
+
+    bool checkFreeSpace() {
+        // Returns true if there is enough room for the car to travel into.
+        bool freeSpace = true;
+        if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out RaycastHit hit, 0.5f, LayerMask.GetMask("Bridge"))) {
+            // When a bridge object is hit, the car behaves differently for the four possible states from the bridge:
+            //      closed: The boat can move forward
+            //      open: The boat can't move forward. If there is no car on the bridge, open the bridge.
+            //      closing: The boat has to wait until the bridge is closed.
+            //      opening: The boat has to wait until the bridge is open. The boats are then allowed to move under the bridge and then the bridge closes.
+
+
+            GameObject obj = hit.transform.parent.gameObject;
+
+            GameObject bridge_main = obj.GetComponent<Bridge_child>().bridge_main;
+
+            if (bridge_main.GetComponent<Bridge>().state == "closed") {
+                if (!bridge_main.GetComponent<Bridge>().objects.Contains(gameObject)) {
+
+                    bridge_main.GetComponent<Bridge>().objects.Add(gameObject);
+                }
+                freeSpace = true;
+            }
+            else if (bridge_main.GetComponent<Bridge>().state == "open") {
+                if (bridge_main.GetComponent<Bridge>().occupied_state != "Boat") {
+
+                    bridge_main.GetComponent<Bridge>().state = "closing";
+                }
+                freeSpace = false;
+            }
+
+            else if (bridge_main.GetComponent<Bridge>().state == "opening"){
+
+                freeSpace = false;
+            }
+
+            else if (bridge_main.GetComponent<Bridge>().state == "closing") {
+                if (!bridge_main.GetComponent<Bridge>().objects.Contains(gameObject)) {
+                    bridge_main.GetComponent<Bridge>().objects.Add(gameObject);
+                }
+                freeSpace = false;
+            }
+        }
+
+        if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), 1, LayerMask.GetMask("Car"))) {
+            freeSpace = false;
+        }
+
+        return freeSpace;
+    }
+
+    GameObject Find_connected_road(GameObject house) {
+        // Finds a road which is connected to house obj.
+
         int xCor = house.GetComponent<General>().xCor;
         int zCor = house.GetComponent<General>().zCor;
         List<GameObject> surround = Utility.SurroundingObjectsPlus(xCor, zCor, 1);
         foreach (GameObject obj in surround) {
             if (obj.tag == "Asphalt") {
-                road = obj;
+                return obj;
             }
         }
-        return road;
+
+        Debug.Log("No road found");
+        Debug.Break();
+        return null;
+    }
+
+    Vector3 FindTarget() {
+        // Finds the next target to drive towards.
+
+        Debug.DrawRay(transform.position, transform.TransformDirection(Vector3.forward) * Mathf.Infinity, Color.cyan);
+        if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out RaycastHit hit, Mathf.Infinity, LayerMask.GetMask("Asphalt"))) {
+            return hit.transform.position;
+        }
+        else {
+            //If no target is found, visualise the path, color the start and endhouse, and stop the simulation.
+            
+            float index = 1;
+            Debug.Log("No target found", gameObject);
+            foreach(GameObject obj in path) {
+                Debug.Log("obj in path" + obj.name, obj);
+                foreach (Transform child in obj.transform) {
+                    if (!child.name.Contains("Asphalt_colliders")) {
+                        child.gameObject.GetComponent<Renderer>().material.color = new Color(index, index, index);
+                    }
+                }
+
+                index -= (float)(1 / (float)path.Count);
+            }
+
+            startHouse.GetComponent<General>().GetChild("House").GetComponent<Renderer>().material.color = Color.red;
+            endHouse.GetComponent<General>().GetChild("House").GetComponent<Renderer>().material.color = Color.blue;
+            
+            Debug.Break();
+            return new Vector3(0,0,0);
+        }
+    }
+
+    GameObject Get_asphalt_object(Vector3 position) {
+        // Get the asphalt object through the transform of the car.
+
+        //TODO xCor and zCor can fall outside of gridObjects.size
+        int xCor = (int)Mathf.Floor(position.x);
+        int zCor = (int)Mathf.Floor(position.z);
+
+        return BuildWorld.gridObjects[xCor, zCor];
     }
 
     List<GameObject> Navigation(GameObject house1, GameObject house2) {
-        GameObject startRoad = FindRoad(startHouse);
-        GameObject endRoad = FindRoad(endHouse);
-
-        startRoad.transform.GetComponent<Renderer>().material.color = Color.red;
-        endRoad.transform.GetComponent<Renderer>().material.color = Color.blue;
-
-        gameObject.transform.position = startRoad.transform.position;
-
-        bool connected = false;
-        List<List<GameObject>> allAsphalt = new List<List<GameObject>>() { new List<GameObject>() { startRoad, null } };
-
-        List<GameObject> newAsph = new List<GameObject>() { startRoad };
-        int count = 0;
-        while (!connected && count < 500) {
-
-            List<GameObject> tempAsph = new List<GameObject>();
-            foreach (GameObject asphalt in newAsph) {
-                int xCor = asphalt.GetComponent<General>().xCor;
-                int zCor = asphalt.GetComponent<General>().zCor;
-
-                List<GameObject> surround = Utility.SurroundingObjectsPlus(xCor, zCor, 1);
-                foreach (GameObject obj in surround) {
-                    if (obj.tag == "Asphalt" || obj.tag == "Bridge") {
-                        bool alreadyUsed = false;
-
-                        for (int i = 0; i < allAsphalt.Count; i++) {
-                            GameObject o = allAsphalt[i][0];
-                            if (o == obj) {
-                                alreadyUsed = true;
-                                break;
-                            }
-                        }
-                        if (!alreadyUsed) {
-                            tempAsph.Add(obj);
-                            allAsphalt.Add(new List<GameObject>() { obj, asphalt });
-
-
-                            if (obj == endRoad) {
-                                connected = true;
-                            }
-                        }
-                    }
-                }
-            }
-
-
-            //prevOuterAsph = new List<GameObject>(outerAsph);
-            newAsph = tempAsph;
-            count += 1;
-        }
-        bool pathFound = false;
-        GameObject end = endRoad;
-
-        List<GameObject> path = new List<GameObject>() { end };
-        count = 0;
-        while (!pathFound && count < 500) {
-
-            for (int i = allAsphalt.Count - 1; i > 0 ; i--) {
-
-                if (allAsphalt[i][0] == end) {
-                    path.Add(allAsphalt[i][1]);
-                    if (allAsphalt[i][1] == startRoad) {
-                        pathFound = true;
-                    }
-                    end = allAsphalt[i][1];
-
-                }
-            }
-            count++;
-        }
-
-        path.Reverse();
-
         /*
-        foreach (GameObject obj in path) {
-            if (obj.tag != "Bridge") {
-                obj.transform.GetComponent<Renderer>().material.color = Color.yellow;
-            }
-        }
-        */
-        
+         * Looks for a path from house1 to house2. It does this by starting from the startRoad and then searching it's
+         * neighbours for other asphalt objects. These new asphalt objects are then checked if they correspond with 
+         * endRoad. If it does not correspond, we look for new asphalt objects from the just found asphalt objects. 
+         * This area grows until endRoad is found.
+         * 
+         * Optimasation: 
+         * If a road is not in a city, this implies that the road is a highway, therefore we only have to look through the highway roads 
+         * until we find a city.
+         * When both cities are null, we are only looking for highway Roads.
+         * When the startcity is null, we find a path from endRoad to highway and from there we look through all the highways
+         * When the endCity is null, we find a path from startRoad to highway and from there we look through all the highways
+         * When both cities are not null,
+         *      Check if startcity == endcity
+         *          find endroad
+         *      else
+         *          find a path from startRoad to a higway tile, 
+         *          then find a path to the endCity walking over highway tiles 
+         *          and finally find the endRoad.
+         */
 
-        return path;
-    }
-
-    List<GameObject> Navigation2(GameObject house1, GameObject house2) {
-
-        // Finds the start and endRoad
-        GameObject startRoad = FindRoad(startHouse);
-        GameObject endRoad = FindRoad(endHouse);
+        // Finds startRoad and endRoad
+        GameObject startRoad = Find_connected_road(startHouse);
+        GameObject endRoad = Find_connected_road(endHouse);
 
         // The path the car has to drive
         List<GameObject> path = new List<GameObject>();
 
-        startRoad.transform.GetComponent<Renderer>().material.color = Color.red;
-        endRoad.transform.GetComponent<Renderer>().material.color = Color.blue;
-
-        // Set the car to its starting position
-        gameObject.transform.position = startRoad.transform.position;
-
-
         GameObject startCity = startRoad.GetComponent<General>().city;
         GameObject endCity = endRoad.GetComponent<General>().city;
 
-        bool onHighway = false;
-        if (startRoad.GetComponent<Asphalt>().highway) {
-            onHighway = true;
-        }
-
-        /*
-         If a road is not in a city, this means that the road is a highway, therefore we only have to look through the highway roads
-         When both cities are null, we are only looking for highway Roads
-         When the startcity is null, we find a path from endRoad to highway and from there we look through all the highways
-         When the endCity is null, we find a path from startRoad to highway and from there we look through all the highways
-         When both cities are not null, 
-            find a path from startRoad to a higway tile, 
-            then find a path to the endCity walking over highway tiles 
-            and finally find the endRoad       
-        */
         if (startCity == null && endCity == null) {
             path.Add(startRoad);
-            path.AddRange(FindRoadOnHighway(startRoad, endRoad));
+            path.AddRange(FindPath(path[path.Count - 1], endRoad, null, "Road on highway"));
         }
 
         else if (startCity == null) {
             path.Add(endRoad);
 
             if (!endRoad.GetComponent<Asphalt>().highway) {
-                path.AddRange(FindHighway(endRoad));
+                path.AddRange(FindPath(path[path.Count - 1], null, null, "Highway"));
             }
 
-            path.AddRange(FindRoadOnHighway(path[path.Count - 1], startRoad));
+            path.AddRange(FindPath(path[path.Count - 1], startRoad, null, "Road on highway"));
             path.Reverse();
-
         }
 
         else if (endCity == null) {
             path.Add(startRoad);
 
-            if (!onHighway) {
-                path.AddRange(FindHighway(startRoad));
+            if (!startRoad.GetComponent<Asphalt>().highway) {
+                path.AddRange(FindPath(path[path.Count - 1], null, null, "Highway"));
             }
 
-            path.AddRange(FindRoadOnHighway(path[path.Count - 1], endRoad));
+            path.AddRange(FindPath(path[path.Count - 1], endRoad, null, "Road on highway"));
         }
-        else{
+
+        else {
+
             path.Add(startRoad);
-            if (!startRoad.GetComponent<Asphalt>().highway) {
-                path.AddRange(FindHighway(startRoad));
-            }
+
             if (startRoad.GetComponent<General>().city != endCity) {
-                path.AddRange(FindCity(path[path.Count - 1], endCity));
+
+                if (!startRoad.GetComponent<Asphalt>().highway) {
+
+                    path.AddRange(FindPath(path[path.Count - 1], null, null, "Highway"));
+                }
+
+                path.AddRange(FindPath(path[path.Count - 1], null, endCity, "City"));
             }
-            path.AddRange(FindRoad(path[path.Count - 1], endRoad));
+            path.AddRange(FindPath(path[path.Count - 1], endRoad, null, "Road"));
         }
-        
-        // Visualisation of the path
-        float index = 1;
-        Debug.Log("PathCount" + path.Count);
-        foreach (GameObject obj in path) {
-            if (obj.tag != "Bridge") {
-                obj.transform.GetComponent<Renderer>().material.color = new Color(index, index, index);
-            }
-            Debug.Log(obj.name, obj);
-            index -= (float)(1/(float)path.Count);
-        }
-        
-        
 
         return path;
     }
 
-    List<GameObject> FindPath(GameObject startRoad, GameObject endRoad, List<List<GameObject>> options) {
-        // Finds a path from startRoad to endRoad, startRoad not included
+    List<GameObject> GetLinkedPaths(GameObject startRoad, GameObject endRoad, List<List<GameObject>> options) {
+        // Finds a path from startRoad to endRoad, startRoad not included.
+        // Looping over al the options.
 
         GameObject end = endRoad;
         List<GameObject> path = new List<GameObject>() { end };
-
-        // If they happen to already be the same, then the path is just the endRoad
-        if (startRoad == endRoad) {
-            path.Add(endRoad);
-        }
 
         // Find the path from startRoad to endRoad
         for (int i = options.Count - 1; i > 0; i--) {
 
             if (options[i][0] == end) {
                 if (options[i][1] == startRoad) {
+                    return path;
                 }
                 else {
                     path.Add(options[i][1]);
@@ -272,38 +328,51 @@ public class Car : MonoBehaviour {
             }
         }
 
-        /*
-        foreach (GameObject obj in path) {
-            Debug.Log(obj.name, obj);
-        }
-        */
-
+        Debug.Break();
+        Debug.Log("No links found from startRoad to endRoad.");
         return path;
     }
 
-    List<GameObject> FindHighway(GameObject startRoad) {
-        // Finds the closest highway from a starting point
+    List<GameObject> FindPath(GameObject startRoad, GameObject endRoad, GameObject city, string cond) {
+        // Finds a road from startRoad to an asphalt object which satisfies the conditions, found in Navigation_end_condition. 
 
-        Debug.Log("Find highway");
-        bool highwayFound = false;
-        int count = 0;
+        // If they happen to be the same, return an empty list.
+        if(startRoad == endRoad) {
+            return new List<GameObject>();
+        }
+
+        //The path that gets returned.
         List<GameObject> path = new List<GameObject>();
-        List<GameObject> newAsph = new List<GameObject>() { startRoad };
+
+        //All new asphalt objects which are found. These will be used for the next loop.
+        List<GameObject> currentAsph = new List<GameObject>() { startRoad };
+
+        //All previously found asphalt objects, newly found objects get checked to this list to make sure we aren't re-using the same asphalt objects.
         List<GameObject> prevAsph = new List<GameObject>();
+
+        //All the links between two asphalt pieces, this is used to get the path.
         List<List<GameObject>> testAsphalt = new List<List<GameObject>>() { new List<GameObject>() { startRoad, null } };
 
-        while (!highwayFound && count < 500) {
-            List<GameObject> tempAsph = new List<GameObject>();
-            foreach (GameObject asphalt in newAsph) {
+        int while_count = 0;
+        while (true) {
 
+            // A list with all asphalt object who will be used in the next iteration
+            List<GameObject> nextAsph = new List<GameObject>();
+
+            // Loop over all current asphalt objects, and check if one their surrounding is endRoad
+            foreach (GameObject asphalt in currentAsph) {
 
                 int xCor = asphalt.GetComponent<General>().xCor;
                 int zCor = asphalt.GetComponent<General>().zCor;
 
                 List<GameObject> surround = Utility.SurroundingObjectsPlus(xCor, zCor, 1);
-                foreach (GameObject obj in surround) {
-                    if (obj.tag == "Asphalt" || obj.tag == "Bridge") {
 
+                foreach (GameObject obj in surround) {
+
+                    // Checks if obj satisfies the conditions based on cond
+                    if (Navigation_allowed_objects(obj, cond)) {
+
+                        // Checks if obj is alreadyUsed in a previous iteration.
                         bool alreadyUsed = false;
                         foreach (GameObject o in prevAsph) {
                             if (o == obj) {
@@ -313,219 +382,76 @@ public class Car : MonoBehaviour {
                         }
 
                         if (!alreadyUsed) {
-                            testAsphalt.Add(new List<GameObject>() { obj, asphalt });
-                            tempAsph.Add(obj);
 
-                            if (obj.GetComponent<Asphalt>().highway) {
-                                highwayFound = true;
+                            nextAsph.Add(obj);
+                            testAsphalt.Add(new List<GameObject>() { obj, asphalt });
+
+                            // Endcondition
+                            if (Navigation_end_condition(obj, endRoad, city, cond)) {
 
                                 if (testAsphalt.Count >= 1) {
-                                    List<GameObject> tempPath = FindPath(startRoad, obj, testAsphalt);
+
+                                    List<GameObject> tempPath = GetLinkedPaths(startRoad, obj, testAsphalt);
                                     tempPath.Reverse();
+
                                     path.AddRange(tempPath);
                                 }
                                 else {
                                     path.Add(obj);
                                 }
+                                return path;
                             }
                         }
                     }
                 }
             }
-            prevAsph = newAsph;
-            newAsph = tempAsph;
-            count++;
+
+            prevAsph = currentAsph;
+            currentAsph = nextAsph;
+
+            // Makes sure there is no infinite loop
+            // TODO replace 500 with a funcion of sizeX and sizeZ
+            while_count++;
+            if (while_count > 500) {
+    
+                Debug.Log($"Path is not found after {while_count} tries.", gameObject);
+                Debug.Break();
+                return null;
+            }
         }
-
-
-
-
-        return path;
     }
 
-    List<GameObject> FindCity(GameObject startRoad, GameObject city) {
-        // Finds the city from a starting point, since cities are connected with eachother only through highways
-        // We only have to walk over the higways
-        // StartRoad has to be a highway
+    bool Navigation_allowed_objects(GameObject obj, string cond) {
+        // Checks if a desired state of an asphalt object is met.
 
-        Debug.Log("Find city");
-        bool cityFound = false;
-        int count = 0;
-        List<GameObject> path = new List<GameObject>();
-        List<GameObject> newAsph = new List<GameObject>() { startRoad };
-        List<GameObject> prevAsph = new List<GameObject>();
-        List<List<GameObject>> testAsphalt = new List<List<GameObject>>() { new List<GameObject>() { startRoad, null } };
-
-        while (!cityFound && count < 500) {
-            List<GameObject> tempAsph = new List<GameObject>();
-
-            foreach (GameObject asphalt in newAsph) {
-
-                int xCor = asphalt.GetComponent<General>().xCor;
-                int zCor = asphalt.GetComponent<General>().zCor;
-
-                List<GameObject> surround = Utility.SurroundingObjectsPlus(xCor, zCor, 1);
-                foreach (GameObject obj in surround) {
-                    if ((obj.tag == "Asphalt" || obj.tag == "Bridge") && obj.GetComponent<Asphalt>().highway) {
-
-                        bool alreadyUsed = false;
-                        foreach (GameObject o in prevAsph) {
-                            if (o == obj) {
-                                alreadyUsed = true;
-                                break;
-                            }
-                        }
-
-                        if (!alreadyUsed) {
-                            tempAsph.Add(obj);
-                            testAsphalt.Add(new List<GameObject>() { obj, asphalt });
-
-                            if (obj.GetComponent<General>().city == city) {
-                                cityFound = true;
-
-                                if (testAsphalt.Count >= 1) {
-
-                                    List<GameObject> tempPath = FindPath(startRoad, obj, testAsphalt);
-                                    tempPath.Reverse();
-
-                                    path.AddRange(tempPath);
-                                }
-                                else {
-                                    path.Add(obj);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            prevAsph = newAsph;
-            newAsph = tempAsph;
-            count++;
+        if(cond == "City" || cond == "Road on highway") {
+            return (obj.tag == "Asphalt" || obj.tag == "Bridge") && obj.GetComponent<Asphalt>().highway;
         }
-
-        return path;
+        else if (cond == "Highway" || cond == "Road") {
+            return obj.tag == "Asphalt" || obj.tag == "Bridge";
+        }
+        else {
+            Debug.Log("Not the right condition given.");
+            return false;
+        }
+        
     }
 
-    List<GameObject> FindRoad(GameObject startRoad, GameObject endRoad) {
-        // Finds a path between startRoad and endRoad
+    bool Navigation_end_condition(GameObject obj, GameObject endRoad, GameObject city, string cond) {
+        // Checks if a desired state of an asphalt object is met.
 
-        Debug.Log("Find road");
-        bool roadFound = false;
-        int count = 0;
-        List<GameObject> path = new List<GameObject>();
-        List<GameObject> newAsph = new List<GameObject>() { startRoad };
-        List<GameObject> prevAsph = new List<GameObject>();
-        List<List<GameObject>> testAsphalt = new List<List<GameObject>>() { new List<GameObject>() { startRoad, null } };
-
-        while (!roadFound && count < 500) {
-
-            List<GameObject> tempAsph = new List<GameObject>();
-            foreach (GameObject asphalt in newAsph) {
-
-                int xCor = asphalt.GetComponent<General>().xCor;
-                int zCor = asphalt.GetComponent<General>().zCor;
-
-                List<GameObject> surround = Utility.SurroundingObjectsPlus(xCor, zCor, 1);
-                foreach (GameObject obj in surround) {
-                    if (obj.tag == "Asphalt" || obj.tag == "Bridge") {
-
-                        bool alreadyUsed = false;
-                        foreach (GameObject o in prevAsph) {
-                            if (o == obj) {
-                                alreadyUsed = true;
-                                break;
-                            }
-                        }
-                        if (!alreadyUsed) {
-                            tempAsph.Add(obj);
-                            testAsphalt.Add(new List<GameObject>() { obj, asphalt });
-
-                            if (obj == endRoad) {
-                                roadFound = true;
-
-                                if (testAsphalt.Count >= 1) {
-
-                                    List<GameObject> tempPath = FindPath(startRoad, endRoad, testAsphalt);
-                                    tempPath.Reverse();
-
-                                    path.AddRange(tempPath);
-                                }
-                                else {
-                                    path.Add(obj);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            prevAsph = newAsph;
-            newAsph = tempAsph;
-            count++;
+        if(cond == "City") {
+            return obj.GetComponent<General>().city == city;
         }
-
-        return path;
-    }
-
-    List<GameObject> FindRoadOnHighway(GameObject startRoad, GameObject endRoad) {
-        // Finds a path from startRoad to endRoad
-        // endRoad has to be on a highway
-
-        Debug.Log("Find road on highway");
-        bool roadFound = false;
-        int count = 0;
-        List<GameObject> path = new List<GameObject>();
-        List<GameObject> newAsph = new List<GameObject>() { startRoad };
-        List<GameObject> prevAsph = new List<GameObject>();
-        List<List<GameObject>> testAsphalt = new List<List<GameObject>>() { new List<GameObject>() { startRoad, null } };
-
-        while (!roadFound && count < 500) {
-
-            List<GameObject> tempAsph = new List<GameObject>();
-            foreach (GameObject asphalt in newAsph) {
-
-
-                int xCor = asphalt.GetComponent<General>().xCor;
-                int zCor = asphalt.GetComponent<General>().zCor;
-
-                List<GameObject> surround = Utility.SurroundingObjectsPlus(xCor, zCor, 1);
-                foreach (GameObject obj in surround) {
-                    if ((obj.tag == "Asphalt" || obj.tag == "Bridge") && obj.GetComponent<Asphalt>().highway) {
-
-                        bool alreadyUsed = false;
-                        foreach (GameObject o in prevAsph) {
-                            if (o == obj) {
-                                alreadyUsed = true;
-                                break;
-                            }
-                        }
-                        if (!alreadyUsed) {
-                            tempAsph.Add(obj);
-
-                            testAsphalt.Add(new List<GameObject>() { obj, asphalt });
-                        
-                            if (obj == endRoad) {
-                                roadFound = true;
-                                if (testAsphalt.Count >= 1) {
-
-                                    List<GameObject> tempPath = FindPath(startRoad, endRoad, testAsphalt);
-                                    tempPath.Reverse();
-
-                                    path.AddRange(tempPath);
-                                }
-                                else {
-                                    path.Add(obj);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            prevAsph = newAsph;
-            newAsph = tempAsph;
-            count++;
+        else if(cond == "Highway") {
+            return obj.GetComponent<Asphalt>().highway;
         }
-        return path;
+        else if(cond == "Road" || cond == "Road on highway") {
+            return obj == endRoad;
+        }
+        else {
+            Debug.Log("Not the right condition given");
+            return false;
+        }
     }
 }
