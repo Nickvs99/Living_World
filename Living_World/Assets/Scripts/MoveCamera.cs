@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class MoveCamera : MonoBehaviour {
+    // Moves the camera
 
     public void Initialize() {
+        // Set camera to starting position
 
         float height;
         if (BuildWorld.sizeX > BuildWorld.sizeZ) {
@@ -13,14 +15,15 @@ public class MoveCamera : MonoBehaviour {
         else {
             height = BuildWorld.sizeZ;
         }
+
         gameObject.transform.position = new Vector3(BuildWorld.sizeX / 2, height, BuildWorld.sizeZ / 2);
-        //gameObject.transform.position = new Vector3(1, 1, 1);
     }
 
     private void Update() {
+        // Move Camera depending on input
 
         // Moveup
-        if (Input.GetKey("w")){
+        if (Input.GetKey("w")) {
             gameObject.transform.position += new Vector3(0, 0, 1) * (transform.position[1] * 0.1f);
         }
 

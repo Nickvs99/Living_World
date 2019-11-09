@@ -3,11 +3,19 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Debugging : MonoBehaviour {
+    // Class is responsible for visualing several variables. It shows cities, allowed intersections, highways, 
+    // and duplicate script and children on a object.
 
 
     public bool intersectCheck = false;
     public bool cityCheck = false;
     public bool highwayCheck = false;
+    public bool _buildCheck = false;
+    public static bool buildCheck;
+
+    public void Start() {
+        buildCheck = _buildCheck;
+    }
 
     public void Update() {
         IntersectCheck();
@@ -16,55 +24,90 @@ public class Debugging : MonoBehaviour {
     }
 
     public void IntersectCheck() {
-        if (intersectCheck) {
-            GameObject[] asphaltObj = GameObject.FindGameObjectsWithTag("Asphalt");
+        // Colors asphalt pieces which can't have an intersection blue
 
-            foreach (GameObject obj in asphaltObj) {
+        if (!intersectCheck) {
+            return;
+        }
 
-                if (obj.GetComponent<General>().intersectPossible == false) {
-                    obj.transform.GetComponent<Renderer>().material.color = Color.blue;
-                }
+        GameObject[] asphaltObj = GameObject.FindGameObjectsWithTag("Asphalt");
 
+        foreach (GameObject obj in asphaltObj) {
+
+            if (obj.GetComponent<General>().intersectPossible == false) {
+
+                List<GameObject> children = obj.GetComponent<General>().GetChildren("Asphalt");
+                ColorChildren(children, Color.blue);
             }
         }
     }
 
     public void DrawCities() {
-
         // Draws the cities in a white color
-        // They get drawn as soon as the cities are created
 
-        if (cityCheck) {
-            GameObject[] allObj = UnityEngine.Object.FindObjectsOfType<GameObject>();
+        if (!cityCheck) {
+            return;
+        }
 
-            foreach (GameObject obj in allObj) {
-                
-                // Since I'm lazy I don't want to check if the object even has a child, 
-                // therefore it's in a try catch statement
-                try {
-                    if (obj.GetComponent<General>().city != null) {
-                        obj.transform.GetComponent<Renderer>().material.color = Color.white;
-                    }
-                }
-                catch {
+        foreach (GameObject obj in BuildWorld.gridObjects) {
 
-                }
-            }         
+            if (obj.GetComponent<General>().city != null) {
+                ColorChildren(obj.GetComponent<General>().GetAllChildren(), Color.white);
+            }
         }
     }
 
     public void HighwayCheck() {
-        if (highwayCheck) {
+        // Colors highway objects black
 
-            GameObject[] asphalts = GameObject.FindGameObjectsWithTag("Asphalt");
-            foreach (GameObject obj in asphalts) {
-                    if (obj.GetComponent<Asphalt>().highway) {
+        if (!highwayCheck) {
+            return;
+        }
 
-                        obj.transform.GetComponent<Renderer>().material.color = Color.grey;
+        GameObject[] asphalts = GameObject.FindGameObjectsWithTag("Asphalt");
+        foreach (GameObject obj in asphalts) {
+            if (obj.GetComponent<Asphalt>().highway) {
 
-                    }
-                }
-            
+                ColorChildren(obj.GetComponent<General>().GetAllChildren(), Color.black);
+
+            }
+        }
+    }
+
+    public static void ChildCheck() {
+        // Checks for duplicate child objects. Returns true when a duplicate
+        // is found, else False.
+
+        if (!buildCheck) {
+            return;
+        }
+
+        foreach (GameObject obj in BuildWorld.gridObjects) {
+            if (obj.GetComponent<General>().ChildCheck()) {
+                ColorChildren(obj.GetComponent<General>().GetAllChildren(), Color.yellow);
+            }
+        }
+    }
+
+    public static void ComponentCheck() {
+        // Checks for duplicate script components. Returns true when a duplicate is found, else false.
+        if (!buildCheck) {
+            return;
+        }
+        foreach (GameObject obj in BuildWorld.gridObjects) {
+            if (obj.GetComponent<General>().ComponentCheck()) {
+                ColorChildren(obj.GetComponent<General>().GetAllChildren(), Color.yellow);
+            }
+        }
+    }
+
+    private static void ColorChildren(List<GameObject> children, Color newColor) {
+        // Sets Renderer.material.color to newColor for all children.
+
+        foreach (GameObject child in children) {
+            if (child.GetComponent<Renderer>() != null) {
+                child.transform.GetComponent<Renderer>().material.color = newColor;
+            }
         }
     }
 }

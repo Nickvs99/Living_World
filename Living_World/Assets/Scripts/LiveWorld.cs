@@ -3,49 +3,54 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class LiveWorld : MonoBehaviour {
+    // Manages the living aspect of the simulation.
+
+    // TODO add time
 
     public GameObject Boat;
     public GameObject Car;
+
     int frame = 0;
 
-    void Start () {
+    private int spawnCarCount = 10;
+
+    void Start() {
+
         Debug.Log("Lets live");
         gameObject.GetComponent<BuildWorld>().enabled = false;
-
     }
-    
-    void Update () {
+
+    void Update() {
 
         // For every x frames spawn a boat
-        if(frame % 40 == 0) {
+        if (frame % 40 == 0) {
             SpawnBoat();
         }
 
-        
-        if(frame == 0) {
-            for(int i = 0; i < 10; i++) {
+        // Start the simulation with n cars
+        if (frame == 0) {
+            for (int i = 0; i < spawnCarCount; i++) {
                 SpawnCar();
             }
         }
 
         frame += 1;
-		
-	}
+
+    }
 
     void SpawnBoat() {
+        // Spawn a boat
 
         GameObject boat = (GameObject)Instantiate(Boat);
         boat.SetActive(true);
         boat.GetComponent<Boat>().Initialize();
-        Debug.Log("Spawn Boat");
-
     }
 
     public void SpawnCar() {
+        // Spawn a car
 
         GameObject car = (GameObject)Instantiate(Car);
         car.SetActive(true);
         car.GetComponent<Car>().Initialize();
-
     }
 }

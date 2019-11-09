@@ -3,19 +3,21 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class General : MonoBehaviour {
+    // This class stores data, which all different states need. 
 
     public int xCor = -1;
     public int zCor = -1;
     public bool intersectPossible = true;
     public bool CityPossible = true;
-    public GameObject city;
+    public GameObject city = null;
     public string state;
 
     public void AddPiece(GameObject newObj) {
         // Adds the script component to the gameObject and instantiates the newObj as child of the gameObject
 
         GameObject temp = (GameObject)Instantiate(newObj);
-        
+
+        // Set it in hierarchy
         temp.transform.position = gameObject.transform.position;
         temp.transform.parent = gameObject.transform;
 
@@ -65,13 +67,80 @@ public class General : MonoBehaviour {
         // Returns the first found child which contains name in its name, 
         // if no child is found, then return null.
 
-        foreach(Transform child in gameObject.transform) {
-            if(child.name.Contains(name)) {
+        foreach (Transform child in gameObject.transform) {
+            if (child.name.Contains(name)) {
 
                 return child.gameObject;
             }
         }
         Debug.Log("No object found with, " + name);
         return null;
+    }
+
+    public List<GameObject> GetChildren(string name) {
+        // Returns all children which contain name in their name
+
+        List<GameObject> children = new List<GameObject>();
+
+        foreach (Transform child in gameObject.transform) {
+            if (child.name.Contains(name)) {
+                children.Add(child.gameObject);
+            }
+        }
+        if (children.Count == 0) {
+            Debug.LogWarning($"No object found with: {name}", gameObject);
+        }
+
+        return children;
+    }
+
+    public List<GameObject> GetAllChildren() {
+        // Returns all children
+
+        List<GameObject> children = new List<GameObject>();
+        foreach (Transform child in gameObject.transform) {
+            children.Add(child.gameObject);
+        }
+
+        if (children.Count == 0) {
+            Debug.LogWarning("This gameObject does not have any child objects.", gameObject);
+        }
+        return children;
+    }
+
+    public bool ComponentCheck() {
+        // Checks for unexpected script components attached to the gameObject. Returns true if there is a duplicate component, else false.
+
+        List<System.Type> componentsTypes = new List<System.Type>();
+        bool duplicateFound = false;
+        foreach (Component component in gameObject.GetComponents<Component>()) {
+            System.Type componentType = component.GetType();
+            if (componentsTypes.Contains(componentType)) {
+                duplicateFound = true;
+                Debug.LogWarning($"{gameObject.name} has a duplicate {componentType} script.", gameObject);
+            }
+            else {
+                componentsTypes.Add(componentType);
+            }
+        }
+        return duplicateFound;
+
+    }
+
+    public bool ChildCheck() {
+        // Checks for duplicate childs. Returns ture if a duplicate is found, else false.
+
+        List<string> childNames = new List<string>();
+        bool duplicateFound = false;
+        foreach (GameObject child in GetAllChildren()) {
+            if (childNames.Contains(child.name)) {
+                duplicateFound = true;
+                Debug.LogWarning($"{gameObject.name} has a duplicate {child.name} child object.");
+            }
+            else {
+                childNames.Add(child.name);
+            }
+        }
+        return duplicateFound;
     }
 }

@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public static class Utility {
+    // Class of functions who are
+
 
     public static int[] CheckCordinates(Vector3 position) {
-        // Returnes the cordinates of the boat
+        // Returnes the cordinates of a vector3
+
         int[] cordinates = new int[2];
         cordinates[0] = Mathf.FloorToInt(position[0]);
         cordinates[1] = Mathf.FloorToInt(position[2]);
@@ -32,43 +35,41 @@ public static class Utility {
 
     //TODO include original piece
     public static List<GameObject> FindConnectedPieces(int xCor, int zCor, string state) {
+        // Returns all object who the state tag and are connected to the [xCor, zCor] object.
+
 
         bool newFound = true;
-        List<GameObject> connectedBridges = new List<GameObject>();
+        List<GameObject> connectedObjects = new List<GameObject>();
 
-        List<GameObject> newFoundBridges = new List<GameObject>() { BuildWorld.gridObjects[xCor, zCor] };
+        List<GameObject> newFoundObjects = new List<GameObject>() { BuildWorld.gridObjects[xCor, zCor] };
         int count = 0;
         while (newFound) {
             newFound = false;
 
             List<GameObject> tempBridges = new List<GameObject>();
 
+            foreach (GameObject newObject in newFoundObjects) {
 
-            foreach (GameObject bridge1 in newFoundBridges) {
-
-
-                int xTemp = bridge1.GetComponent<General>().xCor;
-                int zTemp = bridge1.GetComponent<General>().zCor;
+                int xTemp = newObject.GetComponent<General>().xCor;
+                int zTemp = newObject.GetComponent<General>().zCor;
 
                 List<GameObject> surround = Utility.SurroundingObjectsPlus(xTemp, zTemp, 1);
                 foreach (GameObject obj in surround) {
-                    if (obj.tag == state && !connectedBridges.Contains(obj)) {
-                        connectedBridges.Add(obj);
+                    if (obj.tag == state && !connectedObjects.Contains(obj)) {
+                        connectedObjects.Add(obj);
                         tempBridges.Add(obj);
                         newFound = true;
                     }
-
                 }
-
             }
 
-            newFoundBridges = new List<GameObject>();
+            newFoundObjects = new List<GameObject>();
             foreach (GameObject obj in tempBridges) {
-                newFoundBridges.Add(obj);
+                newFoundObjects.Add(obj);
             }
             count += 1;
         }
-        return connectedBridges;
+        return connectedObjects;
     }
 
     public static Vector3[] FloorVectors(Vector3[] UnroundedVectors) {
@@ -97,13 +98,13 @@ public static class Utility {
         int zCor = origin.GetComponent<General>().zCor;
 
         GameObject neighbour = null;
-        if(direction == "up") {
-            if(CheckWithinBounds(xCor, zCor + 1)) {
+        if (direction == "up") {
+            if (CheckWithinBounds(xCor, zCor + 1)) {
                 neighbour = BuildWorld.gridObjects[xCor, zCor + 1];
             }
         }
-        else if( direction == "down") {
-            if(CheckWithinBounds(xCor, zCor - 1)) {
+        else if (direction == "down") {
+            if (CheckWithinBounds(xCor, zCor - 1)) {
                 neighbour = BuildWorld.gridObjects[xCor, zCor - 1];
             }
         }
@@ -120,6 +121,7 @@ public static class Utility {
 
         return neighbour;
     }
+
     public static void Print(params object[] args) {
         // Prints the given statements
 
@@ -132,6 +134,16 @@ public static class Utility {
             }
         }
         Debug.Log(log);
+    }
+
+    public static void PrintError(string s) {
+        Debug.LogError(s);
+        Debug.Break();
+    }
+
+    public static void PrintError(string s, GameObject obj) {
+        Debug.LogError(s, obj);
+        Debug.Break();
     }
 
     public static List<GameObject> SurroundingObjects(int xCor, int zCor, int size) {
@@ -178,5 +190,11 @@ public static class Utility {
 
         int xCor = (int)obj.transform.position[0];
         int zCor = (int)obj.transform.position[2];
+    }
+
+    public static Vector3 CalcPosition(int x, int z) {
+        // Calaculates the position depening on there x and z coordinate.
+
+        return new Vector3(x + 0.5f, 0, z + 0.5f);
     }
 }

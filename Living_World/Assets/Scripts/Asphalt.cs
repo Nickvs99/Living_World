@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Asphalt : MonoBehaviour {
+    // This class stores information about the asphalt. It also gives it the right visual
+    // depending on its surroundings.
 
     public bool highway = false;
     public float speed_limit = 0.1f;
@@ -12,7 +14,9 @@ public class Asphalt : MonoBehaviour {
         //Adds the colliders used for car navitagion.
         gameObject.GetComponent<General>().AddPiece(GameObject.Find("/States/Asphalt_objects/Asphalt_colliders"));
     }
+
     public void Specialize() {
+        // Give the asphalt object the right look, depending on its surrounding objects.
 
         //Remove default asphalt
         gameObject.GetComponent<General>().RemovePiece("Asphalt_default");
@@ -32,6 +36,7 @@ public class Asphalt : MonoBehaviour {
 
             gameObject.GetComponent<General>().AddPiece(GameObject.Find("/States/Asphalt_objects/Asphalt_end"));
 
+            // Rotate piece
             if (Check_drive_able(Utility.GetNeighbour(gameObject, "up"))) {
                 gameObject.GetComponent<General>().GetChild("Asphalt_end").transform.Rotate(0, 0, 90);
 
@@ -49,9 +54,9 @@ public class Asphalt : MonoBehaviour {
         else if (asphalt_neighbours_count == 2) {
 
             // Straight
-            if(Check_drive_able(Utility.GetNeighbour(gameObject, "left")) && Check_drive_able(Utility.GetNeighbour(gameObject, "right")) || 
-                Check_drive_able(Utility.GetNeighbour(gameObject, "down")) && Check_drive_able(Utility.GetNeighbour(gameObject, "up"))){
-                
+            if (Check_drive_able(Utility.GetNeighbour(gameObject, "left")) && Check_drive_able(Utility.GetNeighbour(gameObject, "right")) ||
+                Check_drive_able(Utility.GetNeighbour(gameObject, "down")) && Check_drive_able(Utility.GetNeighbour(gameObject, "up"))) {
+
                 gameObject.GetComponent<General>().AddPiece(GameObject.Find("/States/Asphalt_objects/Asphalt_straight"));
 
                 if (Check_drive_able(Utility.GetNeighbour(gameObject, "down"))) {
@@ -71,7 +76,7 @@ public class Asphalt : MonoBehaviour {
                     }
                 }
 
-                else if(Check_drive_able(Utility.GetNeighbour(gameObject, "down"))) {
+                else if (Check_drive_able(Utility.GetNeighbour(gameObject, "down"))) {
                     if (Check_drive_able(Utility.GetNeighbour(gameObject, "left"))) {
                         gameObject.GetComponent<General>().GetChild("Asphalt_corner").transform.Rotate(0, 0, 180);
                     }
@@ -111,7 +116,7 @@ public class Asphalt : MonoBehaviour {
     }
 
     private bool Check_drive_able(GameObject obj) {
-        // Checks if the obj is drive-able(tag is Asphalt or Bridge).
+        // Checks if the obj is drive-able (i.e. Asphalt or Bridge).
 
         if (obj == null) {
             return false;
@@ -120,6 +125,4 @@ public class Asphalt : MonoBehaviour {
             return (obj.tag == "Asphalt" || obj.tag == "Bridge");
         }
     }
-
-    
 }

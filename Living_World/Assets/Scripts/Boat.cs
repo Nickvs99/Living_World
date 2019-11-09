@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Boat : MonoBehaviour {
+    // Manages a boat instance
 
     private List<Vector3> RiverPoints;
     public GameObject centerHub, boatHier;
@@ -12,22 +13,25 @@ public class Boat : MonoBehaviour {
 
     public bool moving = true;
 
-    // Use this for initialization
     public void Initialize() {
+        // Inititialeze object.
+
         gameObject.transform.parent = boatHier.transform;
 
         // Get the path
         int r = (int)Random.Range(0, 2);
-        if(r == 0) {
+        if (r == 0) {
             RiverPoints = centerHub.GetComponent<BuildWorld>().River0;
         }
         else {
             RiverPoints = centerHub.GetComponent<BuildWorld>().River1;
         }
 
-        // The boat gameobject begings at the start of the river, index 1 since index 0 does not have a width, therefore they would spawn in the middle of the river and not to one side
+        // The boat gameobject begins at the start of the river.
+        // Start at index 1 since index 0 does not have a width, therefore they would spawn in the middle of the river and not to one side
         gameObject.transform.position = RiverPoints[1];
 
+        // If the spawn location is occupied, destroy gameobject
         if (!checkFreeSpace()) {
             Destroy(gameObject);
         }
@@ -104,10 +108,10 @@ public class Boat : MonoBehaviour {
                 return false;
             }
         }
-        
+
         // When a boat is detected, it cannot move forward.
         if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out hit, 1, LayerMask.GetMask("Boat"))) {
-            
+
             return false;
         }
         return freeSpace;

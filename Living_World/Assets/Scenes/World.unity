@@ -817,9 +817,9 @@ MonoBehaviour:
   cityEmpty: {fileID: 428698537}
   gridHier: {fileID: 479688745}
   bridgeHier: {fileID: 306932379}
-  _sizeX: 50
-  _sizeZ: 50
-  cityCount: 10000
+  _sizeX: 100
+  _sizeZ: 100
+  cityCount: -1
   cities: []
   River0: []
   River1: []
@@ -2105,6 +2105,7 @@ MonoBehaviour:
   intersectCheck: 0
   cityCheck: 0
   highwayCheck: 0
+  _buildCheck: 1
 --- !u!4 &1896018208
 Transform:
   m_ObjectHideFlags: 0

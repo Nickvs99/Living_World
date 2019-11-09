@@ -13,6 +13,7 @@ public class Car : MonoBehaviour {
     private Vector3 target;
 
     public void Initialize() {
+        // Initialize car
 
         gameObject.transform.parent = carHier.transform;
 
@@ -54,11 +55,18 @@ public class Car : MonoBehaviour {
     }
 
     private void DriveCar() {
+        // Drives car
 
         if (checkFreeSpace()) {
+
+            // Makes sure the car doesn't crash the simulation
             int while_count = 0;
+
             float distLeft = Get_asphalt_object(transform.position).GetComponent<Asphalt>().speed_limit;
+
+            // Keeps track of many asphalt_colliders the car has found
             int collide_count = 0;
+
             while (path.Count > 0 && distLeft > Vector3.Distance(transform.position, target) && while_count < 50) {
 
                 distLeft -= Vector3.Distance(transform.position, target);
@@ -96,15 +104,15 @@ public class Car : MonoBehaviour {
                     Debug.Log("WHOOPS, This should not have happend");
                 }
 
-                Vector3 oldTarget = target;
                 target = FindTarget();
 
-                while_count += 1;
 
                 if (!checkFreeSpace()) {
 
                     return;
                 }
+
+                while_count += 1;
 
             }
 
@@ -120,11 +128,13 @@ public class Car : MonoBehaviour {
                 GameObject.Find("World_field").GetComponent<LiveWorld>().SpawnCar();
             }
         }
-    }  
+    }
 
     bool checkFreeSpace() {
-        // Returns true if there is enough room for the car to travel into.
+        // return true if there is enough room for the car to travel into.
+
         bool freeSpace = true;
+
         if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out RaycastHit hit, 0.5f, LayerMask.GetMask("Bridge"))) {
             // When a bridge object is hit, the car behaves differently for the four possible states from the bridge:
             //      closed: The boat can move forward
@@ -152,7 +162,7 @@ public class Car : MonoBehaviour {
                 freeSpace = false;
             }
 
-            else if (bridge_main.GetComponent<Bridge>().state == "opening"){
+            else if (bridge_main.GetComponent<Bridge>().state == "opening") {
 
                 freeSpace = false;
             }
@@ -165,6 +175,7 @@ public class Car : MonoBehaviour {
             }
         }
 
+        // checks for a hit against a car
         if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), 1, LayerMask.GetMask("Car"))) {
             freeSpace = false;
         }
@@ -198,10 +209,10 @@ public class Car : MonoBehaviour {
         }
         else {
             //If no target is found, visualise the path, color the start and endhouse, and stop the simulation.
-            
+
             float index = 1;
             Debug.Log("No target found", gameObject);
-            foreach(GameObject obj in path) {
+            foreach (GameObject obj in path) {
                 Debug.Log("obj in path" + obj.name, obj);
                 foreach (Transform child in obj.transform) {
                     if (!child.name.Contains("Asphalt_colliders")) {
@@ -214,9 +225,9 @@ public class Car : MonoBehaviour {
 
             startHouse.GetComponent<General>().GetChild("House").GetComponent<Renderer>().material.color = Color.red;
             endHouse.GetComponent<General>().GetChild("House").GetComponent<Renderer>().material.color = Color.blue;
-            
+
             Debug.Break();
-            return new Vector3(0,0,0);
+            return new Vector3(0, 0, 0);
         }
     }
 
@@ -337,7 +348,7 @@ public class Car : MonoBehaviour {
         // Finds a road from startRoad to an asphalt object which satisfies the conditions, found in Navigation_end_condition. 
 
         // If they happen to be the same, return an empty list.
-        if(startRoad == endRoad) {
+        if (startRoad == endRoad) {
             return new List<GameObject>();
         }
 
@@ -413,9 +424,8 @@ public class Car : MonoBehaviour {
             // TODO replace 500 with a funcion of sizeX and sizeZ
             while_count++;
             if (while_count > 500) {
-    
-                Debug.Log($"Path is not found after {while_count} tries.", gameObject);
-                Debug.Break();
+
+                Utility.PrintError($"Path is not found after {while_count} tries.", gameObject);
                 return null;
             }
         }
@@ -424,7 +434,7 @@ public class Car : MonoBehaviour {
     bool Navigation_allowed_objects(GameObject obj, string cond) {
         // Checks if a desired state of an asphalt object is met.
 
-        if(cond == "City" || cond == "Road on highway") {
+        if (cond == "City" || cond == "Road on highway") {
             return (obj.tag == "Asphalt" || obj.tag == "Bridge") && obj.GetComponent<Asphalt>().highway;
         }
         else if (cond == "Highway" || cond == "Road") {
@@ -434,19 +444,18 @@ public class Car : MonoBehaviour {
             Debug.Log("Not the right condition given.");
             return false;
         }
-        
     }
 
     bool Navigation_end_condition(GameObject obj, GameObject endRoad, GameObject city, string cond) {
         // Checks if a desired state of an asphalt object is met.
 
-        if(cond == "City") {
+        if (cond == "City") {
             return obj.GetComponent<General>().city == city;
         }
-        else if(cond == "Highway") {
+        else if (cond == "Highway") {
             return obj.GetComponent<Asphalt>().highway;
         }
-        else if(cond == "Road" || cond == "Road on highway") {
+        else if (cond == "Road" || cond == "Road on highway") {
             return obj == endRoad;
         }
         else {
