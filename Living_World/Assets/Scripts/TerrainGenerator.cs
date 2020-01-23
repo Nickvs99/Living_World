@@ -10,34 +10,24 @@ public class TerrainGenerator : MonoBehaviour {
     public int xSize = 10;
     public int zSize = 10;
 
-    // Variables used for creating the terrain with perlinNoise.
-    // scale: Determines the roughness of the terrain. Low values will result in a smooth surface.
-    // heightScale: Determines the max height of the terrain.
+    public GameObject tree;
+    public GameObject grass;
+
+    /* 
+    Variables used for creating the terrain with perlinNoise.
+    scale: Determines the roughness of the terrain. Low values will result in a smooth surface.
+    heightScale: Determines the max height of the terrain.
+    */
     public float scale = 0.05f;
     public float heightScale = 5f;
 
     private void Start() {
 
-        SetSeed();
+        Utility.SetSeed(12294);
  
         GenerateTerrain();
-    }
 
-    /// <summary>
-    /// Initializes the random number generator state with a randomseed.
-    /// </summary>
-    private void SetSeed() {
-        SetSeed(Random.Range(0, 100000));
-    }
-
-    /// <summary>
-    /// Initializes the random number generator state with the given seed.
-    /// </summary>
-    /// <param name="seed">int: seed</param>
-    private void SetSeed(int seed) {
-
-        Debug.Log($"Seed: {seed}");
-        Random.InitState(seed);
+        AddVegetation();
     }
 
     /// <summary>
@@ -45,7 +35,6 @@ public class TerrainGenerator : MonoBehaviour {
     /// </summary>
     private void GenerateTerrain() {
 
-        
         Debug.Log("Create terrain");
 
         Mesh mesh = new Mesh();
@@ -73,9 +62,10 @@ public class TerrainGenerator : MonoBehaviour {
                 i++;
             }
         }
+        
         mesh.vertices = vertices;
 
-        // Create the triangles associated with the vertices
+        // Create triangle meshes associated with the vertices
         int[] triangles = new int[xSize * zSize * 6];
         int vert = 0;
         int tris = 0;
@@ -98,5 +88,131 @@ public class TerrainGenerator : MonoBehaviour {
         mesh.triangles = triangles;
 
         mesh.RecalculateNormals();
+
+        // Update MeshCollider to new mesh
+        GetComponent<MeshCollider>().sharedMesh = mesh;
+    }
+    
+    /// <summary>
+    /// Adds vegetation tot the terrain.
+    /// </summary>
+    private void AddVegetation() {
+
+        Debug.Log("Adding vegetation");
+
+        // Resolution of vegetationMap
+        int resolution = 10;
+        
+        // This map stores the density of vegetation
+        float[,] vegetationMap = new float[xSize / resolution, zSize / resolution];
+
+        // Get a random vegetation map. In the future this will depend on objects in the vicinity.
+        for (int i = 0; i < vegetationMap.GetLength(0); i++) {
+            for (int j = 0; j < vegetationMap.GetLength(1); j++) {
+                vegetationMap[i, j] = Random.Range(0f, 1f);
+            }
+        }
+
+        // Create empty vegetation object for organizing objects
+        GameObject vegetation = new GameObject();
+        vegetation.transform.parent = gameObject.transform;
+        vegetation.name = "Vegetation";
+
+        AddVegetationObjects(tree, vegetation, 10, vegetationMap);
+        AddVegetationObjects(grass, vegetation, 25, vegetationMap);
+                
+    }
+
+    /// <summary>
+    /// Adds objects at a random place on the map. The vegetationMap desribes the density of objects per "tile"
+    /// </summary>
+    /// <param name="obj">GameObject: Objects which are instantiated</param>
+    /// <param name="parent">GameObject: Parent of the instantiated object</param>
+    /// <param name="maxPopulation">int: The maximum population for each section of the vegetationmap</param>
+    /// <param name="vegetationMap">float[,]: The vegetationMap, describes the vegetation density of the terrain.</param>
+    private void AddVegetationObjects(GameObject obj, GameObject parent, int maxPopulation, float[,] vegetationMap){
+        
+        int resolution = xSize / vegetationMap.GetLength(0);
+
+        // Creates a folder object for all instantiated objects
+        GameObject folder = new GameObject();
+        folder.transform.parent = parent.transform;
+        folder.name = obj.name + "s";
+
+        // All newly added objects
+        List<GameObject> objects = new List<GameObject>();
+        
+        // Loop over all sections of the vegetationMap
+        for(int i = 0; i < vegetationMap.GetLength(0); i++){
+            for(int j = 0; j < vegetationMap.GetLength(1); j++){
+
+                // Try to add all objects
+                for (int k = 0; k < maxPopulation; k++) {
+                    
+                    // Check if it is allowed based on the vegetationMap
+                    float r = Random.Range(0f, 1f);
+                    if (r > vegetationMap[i, j]) {
+                        continue;
+                    }
+
+                    int while_count = 0;
+                    while(while_count < 100){
+
+                        // Pick a random x and z coordinate within the section
+                        float xCor = Random.Range((float)i * resolution, (i + 1) * resolution);
+                        float zCor = Random.Range((float)j * resolution, (j + 1) * resolution);
+                        float yCor = GetHeightTerrain(xCor, zCor);
+
+                        // Check if there is enough room for the object
+                        bool valid = true;
+                        foreach(GameObject treeObj in objects){
+
+                            // TODO dist 1 should depend on the obj, it shouldn't be a magic number
+                            if (Utility.dist(treeObj.transform.position, new Vector3(xCor, yCor, zCor)) < 1){
+                                valid = false;
+                                break;
+
+                            }
+                        }
+                        if (!valid){
+                            while_count += 1;
+                            continue;
+                        }
+
+                        GameObject newObj = Instantiate(obj, new Vector3(xCor, yCor, zCor), Quaternion.identity);
+                        newObj.transform.parent = folder.transform;
+                        newObj.name = obj.name + "_" + objects.Count;
+                        objects.Add(newObj);
+                        break;       
+                    }
+
+                    if (while_count == 100){
+                        Debug.LogWarning("Placement of {obj} went wrong. No room found!");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the height of the terrain at a x and z coordinate.
+    /// </summary>
+    /// <param name="x">float: x coordinate</param>
+    /// <param name="z">float: z coordinate</param>
+    /// <returns></returns>
+    public float GetHeightTerrain(float x, float z){
+        
+        // TODO shouldm't be a magic number, now the terrain would be limited to 100 meters
+        float maxHeight = 100f;
+
+        Ray ray = new Ray(new Vector3(x,maxHeight,z), Vector3.down);
+        if (GetComponent<MeshCollider>().Raycast(ray, out RaycastHit hit, maxHeight)) {
+            return hit.point.y;
+        }
+        else {
+            Debug.LogError($"{x}, {z} is not a valid point.");
+            return 0f;
+        }
     }
 }
