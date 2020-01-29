@@ -32,10 +32,21 @@ public static class Utility {
         return Mathf.Pow(Mathf.Pow(v1.x - v2.x, 2) + Mathf.Pow(v1.y - v2.y, 2) + Mathf.Pow(v1.z - v2.z, 2), 0.5f);
     }
 
-    
+    // TODO these functions should have a decorator/attribute instead of having a new function for all possible variations
+    // of parsing arguments
+    /// <summary>
+    /// Profiles the given function
+    /// </summary>
+    /// <param name="func"></param>
     public static void Profile(System.Action func){
         Profiler.BeginSample(func.Method.Name);
         func();
+        Profiler.EndSample();
+    }
+
+    public static void Profile(System.Action<GameObject, GameObject, int, float[,]> func, GameObject arg1, GameObject arg2, int arg3, float[,] arg4){
+        Profiler.BeginSample($"{func.Method.Name}, {arg1.name}");
+        func(arg1, arg2, arg3, arg4);
         Profiler.EndSample();
     }
 }

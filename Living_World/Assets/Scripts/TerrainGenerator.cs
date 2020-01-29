@@ -122,8 +122,8 @@ public class TerrainGenerator : MonoBehaviour {
         vegetation.transform.parent = gameObject.transform;
         vegetation.name = "Vegetation";
 
-        Utility.Profile(AddVegetationObjects(tree, vegetation, 10, vegetationMap));
-        AddVegetationObjects(grass, vegetation, 25, vegetationMap);
+        Utility.Profile(AddVegetationObjects, tree, vegetation, 10, vegetationMap);
+        Utility.Profile(AddVegetationObjects, grass, vegetation, 25, vegetationMap);
                 
     }
 
@@ -191,7 +191,7 @@ public class TerrainGenerator : MonoBehaviour {
                     }
 
                     if (while_count == 100){
-                        Debug.LogWarning("Placement of {obj} went wrong. No room found!");
+                        Debug.LogWarning($"Placement of {obj} went wrong. No room found!");
                         return;
                     }
                 }
