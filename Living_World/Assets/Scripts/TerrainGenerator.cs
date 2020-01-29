@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 /// <summary>
 /// Creates a procedurally generated world.
@@ -12,7 +13,7 @@ public class TerrainGenerator : MonoBehaviour {
 
     public GameObject tree;
     public GameObject grass;
-
+    
     /* 
     Variables used for creating the terrain with perlinNoise.
     scale: Determines the roughness of the terrain. Low values will result in a smooth surface.
@@ -25,9 +26,12 @@ public class TerrainGenerator : MonoBehaviour {
 
         Utility.SetSeed(12294);
  
+        // Utility.Profile(GenerateTerrain);
         GenerateTerrain();
 
-        AddVegetation();
+        Utility.Profile(AddVegetation);
+        // AddVegetation();
+
     }
 
     /// <summary>
@@ -118,7 +122,7 @@ public class TerrainGenerator : MonoBehaviour {
         vegetation.transform.parent = gameObject.transform;
         vegetation.name = "Vegetation";
 
-        AddVegetationObjects(tree, vegetation, 10, vegetationMap);
+        Utility.Profile(AddVegetationObjects(tree, vegetation, 10, vegetationMap));
         AddVegetationObjects(grass, vegetation, 25, vegetationMap);
                 
     }

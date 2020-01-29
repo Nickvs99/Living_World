@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Profiling;
 
 public static class Utility {
     
@@ -29,5 +30,12 @@ public static class Utility {
     public static float dist(Vector3 v1, Vector3 v2){
 
         return Mathf.Pow(Mathf.Pow(v1.x - v2.x, 2) + Mathf.Pow(v1.y - v2.y, 2) + Mathf.Pow(v1.z - v2.z, 2), 0.5f);
+    }
+
+    
+    public static void Profile(System.Action func){
+        Profiler.BeginSample(func.Method.Name);
+        func();
+        Profiler.EndSample();
     }
 }
