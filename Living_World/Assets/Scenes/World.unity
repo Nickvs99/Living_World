@@ -509,8 +509,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d7449ec96ff4a140a145c70c39db754, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  xSize: 200
-  zSize: 200
+  xSize: 250
+  zSize: 250
   tree: {fileID: 132843807}
   grass: {fileID: 2013448348}
   scale: 0.05

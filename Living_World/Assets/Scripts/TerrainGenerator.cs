@@ -1,7 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Profiling;
 
 /// <summary>
 /// Creates a procedurally generated world.
@@ -24,16 +22,19 @@ public class TerrainGenerator : MonoBehaviour {
 
     private void Start() {
 
-        Utility.SetSeed(12294);
+        Utility.SetSeed(51414);
  
-        // Utility.Profile(GenerateTerrain);
         GenerateTerrain();
 
-        Utility.Profile(AddVegetation);
+        CreateCities();
+
         // AddVegetation();
 
+        Debug.Break();
     }
 
+    // TODO Unity only allows 65,534 vertices per mesh. This means the max allowed area is 255 * 255.
+    // Make multiple meshes when a larger area is requested.
     /// <summary>
     /// Creates the terrain for the world.
     /// </summary>
@@ -122,9 +123,8 @@ public class TerrainGenerator : MonoBehaviour {
         vegetation.transform.parent = gameObject.transform;
         vegetation.name = "Vegetation";
 
-        Utility.Profile(AddVegetationObjects, tree, vegetation, 10, vegetationMap);
-        Utility.Profile(AddVegetationObjects, grass, vegetation, 25, vegetationMap);
-                
+        AddVegetationObjects(tree, vegetation, 5, vegetationMap);
+        AddVegetationObjects(grass, vegetation, 10, vegetationMap);              
     }
 
     /// <summary>
@@ -218,5 +218,105 @@ public class TerrainGenerator : MonoBehaviour {
             Debug.LogError($"{x}, {z} is not a valid point.");
             return 0f;
         }
+    }
+
+    public List<Node> nodes = new List<Node>();
+    private void CreateCities(){
+        Debug.Log("Creating cities");
+        
+        /*
+            Place node at random position
+            Repeat n times:
+                while not placed
+                    pick random node
+                    pick random theta and radius
+                    check if position is valid (certain distance from all other nodes)
+                    place node
+
+        */
+
+        // Add initial random node
+        float xCor = Random.Range(0f, xSize);
+        float zCor = Random.Range(0f, zSize);
+        float yCor = GetHeightTerrain(xCor, zCor);
+        nodes.Add(new Node(new Vector3(xCor, yCor, zCor)));    
+
+        for(int i = 0; i < 30; i++){
+            int while_count = 0;
+            while(true){
+                int randomNodeIndex = Random.Range(0, nodes.Count);
+                Node randomNode = nodes[randomNodeIndex];
+
+                float theta = Random.Range(0f, 360);
+                float radius = Random.Range(15f, 100);
+
+                xCor = randomNode.position.x + Mathf.Cos(theta)  * radius;
+                zCor = randomNode.position.z + Mathf.Sin(theta)  * radius;
+
+                // Check if coordinates are a certain distance from all other nodes
+                bool valid = true;
+                if(!CheckInBounds(xCor, zCor)){
+                    continue;
+                }
+
+                yCor = GetHeightTerrain(xCor, zCor);
+                Vector3 pos =  new Vector3(xCor, yCor, zCor);
+
+                foreach(Node node in nodes){
+                    if (Utility.dist(node.position, pos) < 15){
+                        valid = false;
+                        break;
+                    }
+                }
+
+                if (valid){
+                    nodes.Add(new Node(pos));
+                    break;
+                }
+
+                if(while_count == 1000){
+                    Debug.LogWarning("No space found");
+                    break;
+                }
+                while_count += 1;
+            }
+        }
+
+        
+    }
+
+    private void OnDrawGizmos() {
+        if(nodes == null){
+            return;
+        }
+
+        Gizmos.color = Color.red;
+        foreach(Node node in nodes){
+            Gizmos.DrawSphere(node.position, 5f);
+
+            foreach(Node tempNode in node.connections){
+                Gizmos.DrawLine(node.position, tempNode.position);
+            }
+        }
+    }
+    
+    private bool CheckInBounds(float x, float z){
+
+        if (x >= 0 && x < xSize && z >= 0 && z < zSize) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+}
+
+public class Node {
+    public Vector3 position;
+    public List<Node> connections;
+
+    public Node(Vector3 _position){
+        position = _position;
+        connections = new List<Node>();
     }
 }
