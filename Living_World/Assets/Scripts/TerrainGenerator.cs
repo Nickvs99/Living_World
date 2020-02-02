@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-
+//TODO diff between count and counter
 /// <summary>
 /// Creates a procedurally generated world.
 /// </summary>
@@ -21,8 +21,8 @@ public class TerrainGenerator : MonoBehaviour {
     public float heightScale = 5f;
 
     private void Start() {
-
-        Utility.SetSeed(51414);
+    
+        Utility.SetSeed();
  
         GenerateTerrain();
 
@@ -30,7 +30,7 @@ public class TerrainGenerator : MonoBehaviour {
 
         // AddVegetation();
 
-        Debug.Break();
+        // Debug.Break();
     }
 
     // TODO Unity only allows 65,534 vertices per mesh. This means the max allowed area is 255 * 255.
@@ -211,10 +211,11 @@ public class TerrainGenerator : MonoBehaviour {
         float maxHeight = 100f;
 
         Ray ray = new Ray(new Vector3(x,maxHeight,z), Vector3.down);
-        if (GetComponent<MeshCollider>().Raycast(ray, out RaycastHit hit, maxHeight)) {
+        if (GetComponent<MeshCollider>().Raycast(ray, out RaycastHit hit, maxHeight * 2)) {
             return hit.point.y;
         }
         else {
+            Debug.DrawRay(new Vector3(x,maxHeight,z), Vector3.down * maxHeight, Color.red, maxHeight * 2);
             Debug.LogError($"{x}, {z} is not a valid point.");
             return 0f;
         }
@@ -222,67 +223,188 @@ public class TerrainGenerator : MonoBehaviour {
 
     public List<Node> nodes = new List<Node>();
     private void CreateCities(){
-        Debug.Log("Creating cities");
+        Debug.Log("Creating city");
         
-        /*
-            Place node at random position
-            Repeat n times:
-                while not placed
-                    pick random node
-                    pick random theta and radius
-                    check if position is valid (certain distance from all other nodes)
-                    place node
+        CreateNodes();
 
-        */
+        ConnectNodes();
 
+        ConnectClusters();
+    }
+
+    /// <summary>
+    /// Creates a set of nodes on the world. These node represent all intersections or corners.
+    /// </summary>
+    private void CreateNodes(){
+        int nodeCount = 30;
+        
         // Add initial random node
         float xCor = Random.Range(0f, xSize);
         float zCor = Random.Range(0f, zSize);
         float yCor = GetHeightTerrain(xCor, zCor);
         nodes.Add(new Node(new Vector3(xCor, yCor, zCor)));    
 
-        for(int i = 0; i < 30; i++){
-            int while_count = 0;
-            while(true){
-                int randomNodeIndex = Random.Range(0, nodes.Count);
-                Node randomNode = nodes[randomNodeIndex];
+        for(int i = 0; i < nodeCount; i++){
 
-                float theta = Random.Range(0f, 360);
-                float radius = Random.Range(15f, 100);
+            // If a node failed to be placed
+            if(!createNode()){
+                break;
+            };
+        }
+    }
 
-                xCor = randomNode.position.x + Mathf.Cos(theta)  * radius;
-                zCor = randomNode.position.z + Mathf.Sin(theta)  * radius;
+    /// <summary>
+    /// Creates a node a random distance away from existing nodes.
+    /// </summary>
+    /// <returns>bool: true when the node is placed</returns>
+    private bool createNode(){
 
-                // Check if coordinates are a certain distance from all other nodes
-                bool valid = true;
-                if(!CheckInBounds(xCor, zCor)){
+        int while_counter = 0;
+        while(true){
+
+            // Get a random node
+            int randomNodeIndex = Random.Range(0, nodes.Count);
+            Node randomNode = nodes[randomNodeIndex];
+
+            // Get random displacment
+            float theta = Random.Range(0f, 360);
+            float radius = Random.Range(15f, 100);
+
+            // Convert polar coordinates to cartesion
+            float xCor = randomNode.position.x + Mathf.Cos(theta) * radius;
+            float zCor = randomNode.position.z + Mathf.Sin(theta) * radius;
+
+            // Check if coordinates fall in bound
+            if(!CheckInBounds(xCor, zCor)){
+                continue;
+            }
+
+            float yCor = GetHeightTerrain(xCor, zCor);
+            Vector3 pos =  new Vector3(xCor, yCor, zCor);
+
+            // Check if the node is at least a n meters away from all other nodes
+            bool valid = true;
+            foreach(Node node in nodes){
+                if (Utility.dist(node.position, pos) < 15){
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid){
+                nodes.Add(new Node(pos));
+                return true;
+            }
+
+            if(while_counter == 1000){
+                Debug.LogWarning("No space found for node");
+                return false;
+            }
+
+            while_counter += 1;
+        }
+    }
+
+    /// <summary>
+    /// Adds connections between the nodes. 
+    /// This is achieved by connecting the node closest to another node. Excluding connections which have previously been made.
+    /// </summary>
+    private void ConnectNodes(){
+
+        foreach(Node allNode in nodes){
+            
+            float minDist = Mathf.Infinity;
+            Node closestNode = null;
+
+            foreach(Node node2 in nodes){
+
+                // Skip if the two noded are the same
+                if(allNode == node2){
                     continue;
                 }
 
-                yCor = GetHeightTerrain(xCor, zCor);
-                Vector3 pos =  new Vector3(xCor, yCor, zCor);
+                // Skip when the connection already exists
+                if (node2.connections.Contains(allNode)){
+                    continue;
+                }
 
-                foreach(Node node in nodes){
-                    if (Utility.dist(node.position, pos) < 15){
-                        valid = false;
-                        break;
+                float dist = Utility.dist(allNode.position, node2.position);
+                if(dist < minDist){
+                    minDist = dist;
+                    closestNode = node2;
+                }
+            }
+
+            allNode.connections.Add(closestNode);
+            closestNode.connections.Add(allNode);
+        }
+    }
+
+    /// <summary>
+    /// Connects clusters
+    /// </summary>
+    private void ConnectClusters(){
+
+        int while_count = 0;
+            
+        // Get all Nodes connected to the first node
+        List<Node> clusterNodes = new List<Node>(){nodes[0]};
+        Queue<Node> queueNodes = new Queue<Node>();
+        queueNodes.Enqueue(nodes[0]);
+        while(true){
+
+            // Get all nodes connected to the nodes in the queue
+            while(queueNodes.Count > 0){
+
+                Node node = queueNodes.Peek();
+
+                foreach(Node connectedNode in node.connections){
+                    if(!clusterNodes.Contains(connectedNode)){
+                        queueNodes.Enqueue(connectedNode);
+                        clusterNodes.Add(connectedNode);
                     }
                 }
+                queueNodes.Dequeue();
+            }
+        
+        
+            // Check if the cluster is as big as all nodes
+            if(clusterNodes.Count == nodes.Count){
+                break;
+            }
 
-                if (valid){
-                    nodes.Add(new Node(pos));
-                    break;
-                }
+            // Create smallest connection from a cluster node to a non cluster node
+            float minDist = Mathf.Infinity;
+            Node closestNodeCluster = null;
+            Node closestNodeAll = null;
+            foreach(Node clusterNode in clusterNodes){
+                foreach(Node allNode in nodes){
+                    if(clusterNodes.Contains(allNode)){
+                        continue;
+                    }
 
-                if(while_count == 1000){
-                    Debug.LogWarning("No space found");
-                    break;
+                    float dist = Utility.dist(clusterNode.position, allNode.position);
+                    if(dist < minDist){
+                        minDist = dist;
+                        closestNodeCluster = clusterNode;
+                        closestNodeAll = allNode;
+                    }
                 }
-                while_count += 1;
+            }
+
+            closestNodeCluster.connections.Add(closestNodeAll);
+            closestNodeAll.connections.Add(closestNodeCluster);
+
+            queueNodes.Enqueue(closestNodeAll);
+
+            while_count += 1;
+
+            if(while_count == 1000){
+                Debug.Log("I've done fucked up");
+                break;
             }
         }
 
-        
     }
 
     private void OnDrawGizmos() {
@@ -300,6 +422,12 @@ public class TerrainGenerator : MonoBehaviour {
         }
     }
     
+    /// <summary>
+    /// Checks if a given x and z coordinate are within the world boundaries
+    /// </summary>
+    /// <param name="x">float: x-coordinate</param>
+    /// <param name="z">float z-coordinate</param>
+    /// <returns>bool: true when the x and z coordinate are within the boundaries</returns>
     private bool CheckInBounds(float x, float z){
 
         if (x >= 0 && x < xSize && z >= 0 && z < zSize) {
