@@ -11,6 +11,7 @@ public class TerrainGenerator : MonoBehaviour {
 
     public GameObject tree;
     public GameObject grass;
+    public GameObject house;
     
     /* 
     Variables used for creating the terrain with perlinNoise.
@@ -21,8 +22,8 @@ public class TerrainGenerator : MonoBehaviour {
     public float heightScale = 5f;
 
     private void Start() {
-    
-        Utility.SetSeed();
+        
+        Utility.SetSeed(88055);
  
         GenerateTerrain();
 
@@ -224,12 +225,17 @@ public class TerrainGenerator : MonoBehaviour {
     public List<Node> nodes = new List<Node>();
     private void CreateCities(){
         Debug.Log("Creating city");
+
+        // TODO when a object has to take a route which is n times longer than 
+        // as the crow flies, connect them.
         
         CreateNodes();
 
         ConnectNodes();
 
         ConnectClusters();
+
+        AddHouses();
     }
 
     /// <summary>
@@ -323,10 +329,10 @@ public class TerrainGenerator : MonoBehaviour {
                     continue;
                 }
 
-                // Skip when the connection already exists
-                if (node2.connections.Contains(allNode)){
-                    continue;
-                }
+                // // Skip when the connection already exists
+                // if (node2.connections.Contains(allNode)){
+                //     continue;
+                // }
 
                 float dist = Utility.dist(allNode.position, node2.position);
                 if(dist < minDist){
@@ -407,6 +413,60 @@ public class TerrainGenerator : MonoBehaviour {
 
     }
 
+    private void AddHouses(){
+
+        // Creates a folder object for all instantiated objects
+        GameObject folder = new GameObject();
+        folder.transform.parent = gameObject.transform;
+        folder.name = house.name + "s";
+
+        List<Node> nodesCovered = new List<Node>();
+        for(int i = 0; i < nodes.Count; i++){
+            foreach(Node node in nodes[i].connections){
+
+                if(nodesCovered.Contains(node)){
+                    continue;
+                }
+
+                placeHouses(nodes[i].position, node.position, folder);
+
+
+            }
+            nodesCovered.Add(nodes[i]);
+
+        }
+    }
+
+    private void placeHouses(Vector3 start, Vector3 end, GameObject folder){
+        // Places houses adjecent to the line from start to end
+
+        Vector3 dir = start - end;
+
+        Vector3 normal = Vector3.Cross(dir, Vector3.up).normalized;
+
+        int houseWidth = 6;
+
+        float timeStep = houseWidth / dir.magnitude;
+
+        for(float t = 0; t < 1; t += timeStep){
+            int[] signs = new int[]{1,-1};
+            foreach(int sign in signs){
+
+                int roadWidth = 2;
+                Vector3 pos = Vector3.Lerp(start, end, t) + normal * sign * (roadWidth + houseWidth / 2);
+                pos.y = GetHeightTerrain(pos.x, pos.z);
+                GameObject newHouse = Instantiate(house, pos, Quaternion.identity, folder.transform);
+
+                // Check for collision with road
+
+                // Check for collsion with other houses
+
+                // Rotate houses acoording to the direction of road
+                
+            }
+        }
+    }
+
     private void OnDrawGizmos() {
         if(nodes == null){
             return;
@@ -420,6 +480,7 @@ public class TerrainGenerator : MonoBehaviour {
                 Gizmos.DrawLine(node.position, tempNode.position);
             }
         }
+
     }
     
     /// <summary>
